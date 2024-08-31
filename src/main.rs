@@ -51,7 +51,7 @@ async fn format_crypto_data(
 
     let mut summaries = Vec::new();
 
-    let combined_coins = growth_coins.iter().take(3).chain(decline_coins.iter().take(3));
+    let combined_coins = growth_coins.iter().take(4).chain(decline_coins.iter().take(4));
     
     for coin in combined_coins {
         let query = format!("{} cryptocurrency", coin.name);
@@ -94,7 +94,7 @@ async fn call_groq_api(api_key: &str, base_url: &str, model: &str, prompt: &str,
         "messages": [
             {
                 "role": "system",
-                "content": "You are a crypto analyst and journalist. You do not give financial advice. You analyze the news and summarize the data. The summary for each token must use the following template: 'Analyze the following data: Coin: {coin_name}, Symbol: {coin_symbol}, 24h Change: {24h_change}%, 7d Change: {7d_change}%, What caused: {news analysis}'. The summary must not exceed 300 tokens and must NOT include any URLs, references, or links. Just provide the analysis in a newspaper style."
+                "content": "You are a crypto analyst and journalist. You do not give financial advice. You analyze the news and summarize the data. The summary for each token must use the following template: 'Analyze the following data: Coin: {coin_name}, Symbol: {coin_symbol}, 24h Change: {24h_change}%, 7d Change: {7d_change}%, What caused: {news analysis}'. The summary must not exceed 300 tokens and must NOT include any URLs, references, or links. Just provide the analysis in a newspaper style. If the one of news is not related to the token - just ignore it."
             },
             {
                 "role": "user",
@@ -134,7 +134,7 @@ async fn fetch_news(api_key: &str, query: &str) -> Result<Vec<String>, Box<dyn s
     let json: Value = serde_json::from_str(&body)?;
     let mut news = Vec::new();
     if let Some(articles) = json["articles"].as_array() {
-        for article in articles.iter().take(3) {
+        for article in articles.iter().take(5) {
             if let Some(title) = article["title"].as_str() {
                 if let Some(url) = article["url"].as_str() {
                     news.push(format!("{} - {}", title, url));
