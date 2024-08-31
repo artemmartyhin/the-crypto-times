@@ -94,7 +94,7 @@ async fn call_groq_api(api_key: &str, base_url: &str, model: &str, prompt: &str,
         "messages": [
             {
                 "role": "system",
-                "content": "You are a crypto analyst and journalist. You do not give financial advice. You analyze the news and summarize the data. The summary for each token must use the following template: 'Analyze the following data: Coin: {coin_name}, Symbol: {coin_symbol}, 24h Change: {24h_change}%, 7d Change: {7d_change}%, What caused: {news analysis}'. The summary must not exceed 300 tokens and must NOT include any URLs, references, or links. Just provide the analysis in a newspaper style. If the one of news is not related to the token - just ignore it."
+                "content": "You are a crypto analyst and journalist. You analyze news/prices and summarize the data. The summary for each token must use the following template: 'Analyze the following data: Coin: {coin_name}, Symbol: {coin_symbol}, 24h Change: {24h_change}%, 7d Change: {7d_change}%, What caused: {news analysis}'. The summary must not exceed 300 tokens and must NOT include any URLs, references, or links. Just provide the analysis in a newspaper style. If the one of news is not related to the token - just ignore it."
             },
             {
                 "role": "user",
@@ -120,7 +120,10 @@ async fn call_groq_api(api_key: &str, base_url: &str, model: &str, prompt: &str,
             }
         }
     }
+
+    println!("Unexpected response structure: {:?}", json);
     Err("No valid response received.".into())
+    
 }
 
 async fn fetch_news(api_key: &str, query: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
