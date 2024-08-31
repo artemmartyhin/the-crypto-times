@@ -134,6 +134,7 @@ async fn fetch_news(api_key: &str, query: &str) -> Result<Vec<String>, Box<dyn s
     let client = reqwest::Client::new();
     let res = client.get(&url).header(USER_AGENT, "Rust News Client").send().await?;
     let body = res.text().await?;
+    print!("News API response: {}", body);
     let json: Value = serde_json::from_str(&body)?;
     let mut news = Vec::new();
     if let Some(articles) = json["articles"].as_array() {
