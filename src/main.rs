@@ -51,7 +51,7 @@ async fn format_crypto_data(
 
     let mut summaries = Vec::new();
 
-    let combined_coins = growth_coins.iter().take(4).chain(decline_coins.iter().take(4));
+    let combined_coins = growth_coins.iter().take(3).chain(decline_coins.iter().take(3));
     
     for coin in combined_coins {
         let query = format!("{} cryptocurrency", coin.name);
@@ -137,7 +137,7 @@ async fn fetch_news(api_key: &str, query: &str) -> Result<Vec<String>, Box<dyn s
     let json: Value = serde_json::from_str(&body)?;
     let mut news = Vec::new();
     if let Some(articles) = json["articles"].as_array() {
-        for article in articles.iter().take(5) {
+        for article in articles.iter().take(4) {
             if let Some(title) = article["title"].as_str() {
                 if let Some(url) = article["url"].as_str() {
                     news.push(format!("{} - {}", title, url));
