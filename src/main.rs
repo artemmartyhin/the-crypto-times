@@ -54,7 +54,7 @@ async fn format_crypto_data(
     let combined_coins = growth_coins.iter().take(3).chain(decline_coins.iter().take(3));
     
     for coin in combined_coins {
-        let query = format!("{} cryptocurrency", coin.name);
+        let query = format!("{} {} cryptccurency", coin.name, coin.symbol);
         let news = fetch_news(news_api_key, &query).await.unwrap_or_else(|_| vec!["No news found".to_string()]);
         
         let summary_prompt = format!(
@@ -94,7 +94,7 @@ async fn call_groq_api(api_key: &str, base_url: &str, model: &str, prompt: &str,
         "messages": [
             {
                 "role": "system",
-                "content": "You are a crypto analyst and journalist. You analyze news/prices and summarize the data. The summary for each token must use the following template: 'Analyze the following data: Coin: {coin_name}, Symbol: {coin_symbol}, 24h Change: {24h_change}%, 7d Change: {7d_change}%, What caused: {news analysis}'. The summary must not exceed 300 tokens and must NOT include any URLs, references, or links. Just provide the analysis in a newspaper style. If the one of news is not related to the token - just ignore it. You don't have to list the news. We need a solid, stylish and beautiful newspaper paragraph that highlights the most important news and describes them to readers in the context of the reason for the rise or fall in the price of the token."
+                "content": "You are a crypto analyst and journalist. You analyze news/prices and summarize the data. The summary for each token must use the following template: 'Analyze the following data: Coin: {coin_name}, Symbol: {coin_symbol}, 24h Change: {24h_change}%, 7d Change: {7d_change}%, What caused: {news analysis}'. The summary must not exceed 300 tokens and must NOT include any URLs, references, or links. Just provide the analysis in a newspaper style. If the one of news is not related to the token - just ignore it. Dont eveven mention it. You don't have to list the news. We need a solid, stylish and beautiful newspaper paragraph that highlights the most important news and describes them to readers in the context of the reason for the rise or fall in the price of the token."
             },
             {
                 "role": "user",
