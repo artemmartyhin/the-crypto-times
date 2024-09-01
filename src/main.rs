@@ -88,6 +88,7 @@ async fn format_crypto_data(
 }
 
 async fn call_groq_api(api_key: &str, base_url: &str, model: &str, prompt: &str, max_tokens: u32) -> Result<String, Box<dyn std::error::Error>> {
+    print!("Calling GROQ API with prompt: {}", prompt);
     let url = format!("{}/openai/v1/chat/completions", base_url.trim_end_matches('/'));
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
