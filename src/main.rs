@@ -56,7 +56,7 @@ async fn format_crypto_data(
     let combined_coins = growth_coins.iter().take(3).chain(decline_coins.iter().take(3));
     
     for coin in combined_coins {
-        let query = format!("{} {} cryptocurrency", coin.name, coin.symbol);
+        let query = format!("{} cryptocurrency", coin.name);
         let news = fetch_news(news_api_key, &query).await.unwrap_or_else(|_| vec!["No news found".to_string()]);
         
         let summary_prompt = format!(
