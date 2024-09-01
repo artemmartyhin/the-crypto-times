@@ -150,7 +150,7 @@ async fn fetch_news(api_key: &str, query: &str) -> Result<Vec<String>, Box<dyn s
 
     let mut news = Vec::new();
     if let Some(articles) = json["articles"].as_array() {
-        for article in articles.iter().take(4) {
+        for article in articles.iter().take(12) {
             if let Some(title) = article["title"].as_str() {
                 if let Some(url) = article["url"].as_str() {
                     news.push(format!("{} - {}", title, url));
