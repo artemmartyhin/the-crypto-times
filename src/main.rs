@@ -4,14 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use serde_json::Value;
 use actix_cors::Cors;
-use std::fs;
-use std::path::Path;
 use chrono::Utc;
-use std::fs::File;
-use std::io::{self, Write};
+use std::sync::Mutex;
 use std::env;
 use dotenv::dotenv;
-
 
 #[derive(Deserialize, Debug, Clone)]
 struct CoinData {
@@ -37,6 +33,11 @@ struct FinalSummary {
     symbol: String,
     summary: String,
     references: Vec<String>,
+}
+
+// Shared state to store summaries in memory
+struct AppState {
+    summaries: Mutex<HashMap<String, Vec<FinalSummary>>>,
 }
 
 async fn format_crypto_data(
@@ -165,7 +166,7 @@ async fn fetch_news(api_key: &str, query: &str) -> Result<Vec<String>, Box<dyn s
 }
 
 
-async fn fetch_and_store_summaries() -> io::Result<()> {
+async fn fetch_and_store_summaries(state: web::Data<AppState>) -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
     let coinmarketcap_api_key = env::var("COINMARKETCAP_API_KEY").expect("COINMARKETCAP_API_KEY not set");
     let groq_api_key = env::var("GROQ_API_KEY").expect("GROQ_API_KEY not set");
@@ -190,10 +191,10 @@ async fn fetch_and_store_summaries() -> io::Result<()> {
                 Ok(api_response) => {
                     let summaries = format_crypto_data(&api_response.data, news_api_key.as_str(), groq_api_key.as_str(), groq_api_base_url.as_str()).await;
                     let date_str = Utc::now().format("%Y-%m-%d").to_string();
-                    let file_path = format!("data/{}.json", date_str);
 
-                    let mut file = File::create(&file_path)?;
-                    file.write_all(serde_json::to_string(&summaries)?.as_bytes())?;
+                    let mut summaries_map = state.summaries.lock().unwrap();
+                    summaries_map.insert(date_str, summaries);
+
                 }
                 Err(e) => {
                     println!("Failed to parse API response: {}", e);
@@ -210,35 +211,44 @@ async fn fetch_and_store_summaries() -> io::Result<()> {
 }
 
 #[get("/crypto-summary")]
-async fn get_crypto_summary() -> impl Responder {
+async fn get_crypto_summary(state: web::Data<AppState>) -> impl Responder {
     let date_str = Utc::now().format("%Y-%m-%d").to_string();
-    let file_path = format!("data/{}.json", date_str);
+    let summaries_map = state.summaries.lock().unwrap();
 
-    if Path::new(&file_path).exists() {
-        let summaries = fs::read_to_string(file_path).expect("Unable to read file");
+    if let Some(summaries) = summaries_map.get(&date_str) {
         HttpResponse::Ok()
             .content_type(ContentType::json())
-            .body(summaries)
+            .json(summaries)
     } else {
-        fetch_and_store_summaries().await.expect("Failed to fetch and store summaries");
-        let summaries = fs::read_to_string(file_path).expect("Unable to read file");
-        HttpResponse::Ok()
-            .content_type(ContentType::json())
-            .body(summaries)
+        drop(summaries_map); // Unlock before calling fetch_and_store_summaries
+        if let Err(e) = fetch_and_store_summaries(state.clone()).await {
+            return HttpResponse::InternalServerError().body(format!("Failed to fetch and store summaries: {}", e));
+        }
+        let summaries_map = state.summaries.lock().unwrap();
+        if let Some(summaries) = summaries_map.get(&date_str) {
+            HttpResponse::Ok()
+                .content_type(ContentType::json())
+                .json(summaries)
+        } else {
+            HttpResponse::InternalServerError().body("Failed to generate summaries")
+        }
     }
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    fs::create_dir_all("data").expect("Failed to create data directory");
+    let app_state = web::Data::new(AppState {
+        summaries: Mutex::new(HashMap::new()),
+    });
 
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         let cors = Cors::default()
             .allow_any_origin()
             .allow_any_method()
             .allow_any_header();
 
         App::new()
+            .app_data(app_state.clone())
             .wrap(cors)
             .service(get_crypto_summary)
     })
