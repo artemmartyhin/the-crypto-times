@@ -10,6 +10,8 @@ use chrono::Utc;
 use std::fs::File;
 use std::io::{self, Write};
 use std::env;
+use dotenv::dotenv;
+
 
 #[derive(Deserialize, Debug, Clone)]
 struct CoinData {
@@ -54,7 +56,7 @@ async fn format_crypto_data(
     let combined_coins = growth_coins.iter().take(3).chain(decline_coins.iter().take(3));
     
     for coin in combined_coins {
-        let query = format!("{} {} cryptoccurency", coin.name, coin.symbol);
+        let query = format!("{} {} cryptocurrency", coin.name, coin.symbol);
         let news = fetch_news(news_api_key, &query).await.unwrap_or_else(|_| vec!["No news found".to_string()]);
         
         let summary_prompt = format!(
@@ -127,14 +129,29 @@ async fn call_groq_api(api_key: &str, base_url: &str, model: &str, prompt: &str,
 }
 
 async fn fetch_news(api_key: &str, query: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    println!("Fetching news for query: {}", query);
+
     let url = format!(
         "https://newsapi.org/v2/everything?q={}&sortBy=publishedAt&apiKey={}",
         query, api_key
     );
+    println!("News API URL: {}", url);
+
     let client = reqwest::Client::new();
     let res = client.get(&url).header(USER_AGENT, "Rust News Client").send().await?;
+    println!("News API Response Status: {}", res.status());
+
     let body = res.text().await?;
-    let json: Value = serde_json::from_str(&body)?;
+    println!("News API Response Body: {}", body);
+
+    let json: Value = match serde_json::from_str(&body) {
+        Ok(json) => json,
+        Err(e) => {
+            println!("Failed to parse JSON: {}", e);
+            return Err(Box::new(e));
+        }
+    };
+
     let mut news = Vec::new();
     if let Some(articles) = json["articles"].as_array() {
         for article in articles.iter().take(4) {
@@ -144,11 +161,16 @@ async fn fetch_news(api_key: &str, query: &str) -> Result<Vec<String>, Box<dyn s
                 }
             }
         }
+    } else {
+        println!("No articles found in response.");
     }
+
     Ok(news)
 }
 
+
 async fn fetch_and_store_summaries() -> io::Result<()> {
+    dotenv().ok();
     let coinmarketcap_api_key = env::var("COINMARKETCAP_API_KEY").expect("COINMARKETCAP_API_KEY not set");
     let groq_api_key = env::var("GROQ_API_KEY").expect("GROQ_API_KEY not set");
     let news_api_key = env::var("NEWS_API_KEY").expect("NEWS_API_KEY not set");
@@ -224,7 +246,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .service(get_crypto_summary)
     })
-    .bind(("0.0.0.0", 8080))? 
+    .bind(("127.0.0.1", 8066))? 
     .run()
     .await
 }
