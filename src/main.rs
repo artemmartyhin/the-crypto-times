@@ -69,7 +69,7 @@ async fn format_crypto_data(
             news.join("\n")
         );
         
-        let summary = call_groq_api(groq_api_key, groq_api_base_url, "mixtral-8x7b-32768", &summary_prompt, 300).await.unwrap_or_else(|e| {
+        let summary = call_groq_api(groq_api_key, groq_api_base_url, "mixtral-8x7b-32768", &summary_prompt, 320).await.unwrap_or_else(|e| {
             println!("Error fetching summary: {}", e);
             "No summary available.".to_string()
         });
@@ -98,7 +98,7 @@ async fn call_groq_api(api_key: &str, base_url: &str, model: &str, prompt: &str,
         "messages": [
             {
                 "role": "system",
-                "content": "You are a crypto analyst and journalist. You analyze news/prices and summarize the data. The summary for each token must use the following template: 'Analyze the following data: Coin: {coin_name}, Symbol: {coin_symbol}, 24h Change: {24h_change}%, 7d Change: {7d_change}%, What caused: {news analysis}'. The summary must not exceed 300 tokens and must NOT include any URLs, references, or links. Just provide the analysis in a newspaper style. If the one of news is not related to the token - just ignore it. Dont eveven mention it. You don't have to list the news. We need a solid, stylish and beautiful newspaper paragraph that highlights the most important news and describes them to readers in the context of the reason for the rise or fall in the price of the token. Make sure that all sentences are logically connected and full."
+                "content": "Response must not exceed 280 tokens. You are a crypto analyst and journalist. You analyze news/prices and summarize the data. The summary for each token must use the following template: 'Analyze the following data: Coin: {coin_name}, Symbol: {coin_symbol}, 24h Change: {24h_change}%, 7d Change: {7d_change}%, What caused: {news analysis}'. The summary must not exceed 300 tokens and must NOT include any URLs, references, or links. Just provide the analysis in a newspaper style. If the one of news is not related to the token - just ignore it. Dont eveven mention it. You don't have to list the news. We need a solid, stylish and beautiful newspaper paragraph that highlights the most important news and describes them to readers in the context of the reason for the rise or fall in the price of the token. Make sure that all sentences are logically connected and full."
             },
             {
                 "role": "user",
