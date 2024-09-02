@@ -8,6 +8,12 @@ use chrono::Utc;
 use std::sync::Mutex;
 use std::env;
 use dotenv::dotenv;
+use std::fs::{self, File};
+use std::io::{Read, Write};
+use std::path::Path;
+
+
+
 
 #[derive(Deserialize, Debug, Clone)]
 struct CoinData {
@@ -27,7 +33,7 @@ struct ApiResponse {
     data: Vec<CoinData>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct FinalSummary {
     token: String,
     symbol: String,
@@ -38,6 +44,28 @@ struct FinalSummary {
 // Shared state to store summaries in memory
 struct AppState {
     summaries: Mutex<HashMap<String, Vec<FinalSummary>>>,
+}
+
+async fn save_summaries_to_file(data: &Vec<FinalSummary>, date_str: &str) -> std::io::Result<()> {
+    let dir_path = Path::new("data/");
+    if !dir_path.exists() {
+        fs::create_dir_all(dir_path)?;
+    }
+    
+    let file_path = dir_path.join(format!("{}.json", date_str));
+    let mut file = File::create(file_path)?;
+    let json_data = serde_json::to_string_pretty(data)?;
+    file.write_all(json_data.as_bytes())?;
+    Ok(())
+}
+
+async fn load_summaries_from_file(date_str: &str) -> std::io::Result<Vec<FinalSummary>> {
+    let file_path = Path::new("data/").join(format!("{}.json", date_str));
+    let mut file = File::open(file_path)?;
+    let mut content = String::new();
+    file.read_to_string(&mut content)?;
+    let data: Vec<FinalSummary> = serde_json::from_str(&content)?;
+    Ok(data)
 }
 
 async fn format_crypto_data(
@@ -193,8 +221,12 @@ async fn fetch_and_store_summaries(state: web::Data<AppState>) -> Result<(), Box
                     let summaries = format_crypto_data(&api_response.data, news_api_key.as_str(), groq_api_key.as_str(), groq_api_base_url.as_str()).await;
                     let date_str = Utc::now().format("%Y-%m-%d").to_string();
 
+                    // Save summaries to file
+                    save_summaries_to_file(&summaries, &date_str).await?;
+
+                    // Optionally store in memory (not necessary if using files)
                     let mut summaries_map = state.summaries.lock().unwrap();
-                    summaries_map.insert(date_str, summaries);
+                    summaries_map.insert(date_str.clone(), summaries);
 
                 }
                 Err(e) => {
@@ -214,14 +246,14 @@ async fn fetch_and_store_summaries(state: web::Data<AppState>) -> Result<(), Box
 #[get("/crypto-summary")]
 async fn get_crypto_summary(state: web::Data<AppState>) -> impl Responder {
     let date_str = Utc::now().format("%Y-%m-%d").to_string();
-    let summaries_map = state.summaries.lock().unwrap();
 
-    if let Some(summaries) = summaries_map.get(&date_str) {
+    // Try to load summaries from file first
+    if let Ok(summaries) = load_summaries_from_file(&date_str).await {
         HttpResponse::Ok()
             .content_type(ContentType::json())
             .json(summaries)
     } else {
-        drop(summaries_map); // Unlock before calling fetch_and_store_summaries
+        // If not found, fetch and store new summaries
         if let Err(e) = fetch_and_store_summaries(state.clone()).await {
             return HttpResponse::InternalServerError().body(format!("Failed to fetch and store summaries: {}", e));
         }
